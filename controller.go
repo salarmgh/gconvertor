@@ -27,6 +27,8 @@ func scaleHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func scaler(name string, size int) {
+	log.Println("name: ", name)
+	log.Println("size: ", size)
 	sizes := map[int]string{
     720: "960x720",
 	480: "640x480",
@@ -34,8 +36,8 @@ func scaler(name string, size int) {
     240: "320x240",
 	144: "256x144",
     }
-    log.Println("ffmpeg, -i, " + name + ", -s, " + sizes[size] + ", " + strings.Split(name, ".")[0] + "_" + sizes[size] + "p." + strings.Split(name, ".")[1])
-	cmd := exec.Command("ffmpeg", "-i", name, "-s", sizes[size], strings.Split(name, ".")[0] + "_" + sizes[size] + "." + strings.Split(name, ".")[1])
+    log.Println("ffmpeg, -i, " + name + ", -s, " + sizes[size] + ", " + strings.Split(name, ".")[0] + "_" + strconv.Itoa(size) + "p." + strings.Split(name, ".")[1])
+	cmd := exec.Command("ffmpeg", "-i", name, "-s", sizes[size], strings.Split(name, ".")[0] + "_" + strconv.Itoa(size) + "p." + strings.Split(name, ".")[1])
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
@@ -46,11 +48,11 @@ func scaler(name string, size int) {
 	}
 	log.Printf("in all caps: %q\n", out.String())
 	log.Printf("in all caps: %q\n", stderr.String())
-	size = videoSize(conf.Path + "/" + name)
+	size = videoSize(strings.Split(name, ".")[0] + "_" + strconv.Itoa(size) + "p." + strings.Split(name, ".")[1])
 	if size == -1 {
 		return
 	}
-	scaler(name, size)
+	scaler(strings.Split(name, ".")[0] + "_" + strconv.Itoa(size) + "p." + strings.Split(name, ".")[1], size)
 }
 
 func videoSize(name string) int {
