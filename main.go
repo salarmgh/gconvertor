@@ -9,19 +9,24 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func main() {
-	c, err := ConfigLoad()
+var conf ConfigMap = ConfigMap{}
+
+func init() {
+	var err error
+	conf, err = ConfigLoad()
 	if err != nil {
 		log.Fatal(err)
 	}
+}
 
+func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/scale", scaleHandler)
 
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
-	log.Println("Running on " + c.Host + ":" + c.Port)
-	err = http.ListenAndServe(c.Host + ":" + c.Port, loggedRouter)
+	log.Println("Running on " + conf.Host + ":" + conf.Port)
+	err := http.ListenAndServe(conf.Host + ":" + conf.Port, loggedRouter)
 	if err != nil {
 		log.Println(err)
 	}

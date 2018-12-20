@@ -6,3 +6,11 @@ services:
       args:
         HTTP_PROXY: http://Guys:EscapeIran@178.128.164.255:7777
         HTTPS_PROXY: http://Guys:EscapeIran@178.128.164.255:7777
+    environment:
+      LISTEN_ADDR: 0.0.0.0
+      LISTEN_PORT: 8080
+      EXPORT_PATH: /data
+    ports: 
+      - 8080:8080
+    volumes:
+      - /home/salarmgh/Workspace/videos:/data
