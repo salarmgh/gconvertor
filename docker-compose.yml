@@ -1,0 +1,8 @@
+version: "3"
+services:
+  gconvertor:
+    build:
+      context: .
+      args:
+        HTTP_PROXY: http://Guys:EscapeIran@178.128.164.255:7777
+        HTTPS_PROXY: http://Guys:EscapeIran@178.128.164.255:7777
