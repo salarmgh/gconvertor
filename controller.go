@@ -22,12 +22,20 @@ func scaleHandler(w http.ResponseWriter, r *http.Request) {
 	    panic(err)
 	}
 	json.Unmarshal([]byte(bodyByte), &body)
-	scaler(conf.Path + "/" + body.Name, videoSize(conf.Path + "/" + body.Name))
+	size := videoSize(conf.Path + "/" + body.Name)
+	scaler(conf.Path + "/" + body.Name, size)
 }
 
-func scaler(name string, size string) {
-    log.Println("ffmpeg, -i, " + name + ", -s, " + size + ", " + strings.Split(name, ".")[0] + "_720p." + strings.Split(name, ".")[1])
-	cmd := exec.Command("ffmpeg", "-i", name, "-s", size, strings.Split(name, ".")[0] + "_720p." + strings.Split(name, ".")[1])
+func scaler(name string, size int) {
+	sizes := map[int]string{
+    720: "960x720",
+	480: "640x480",
+    360: "480x360",
+    240: "320x240",
+	144: "256x144",
+    }
+    log.Println("ffmpeg, -i, " + name + ", -s, " + sizes[size] + ", " + strings.Split(name, ".")[0] + "_" + sizes[size] + "p." + strings.Split(name, ".")[1])
+	cmd := exec.Command("ffmpeg", "-i", name, "-s", sizes[size], strings.Split(name, ".")[0] + "_" + sizes[size] + "." + strings.Split(name, ".")[1])
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
@@ -38,6 +46,11 @@ func scaler(name string, size string) {
 	}
 	log.Printf("in all caps: %q\n", out.String())
 	log.Printf("in all caps: %q\n", stderr.String())
+	size = videoSize(conf.Path + "/" + name)
+	if size == -1 {
+		return
+	}
+	scaler(name, size)
 }
 
 func videoSize(name string) int {
@@ -49,22 +62,22 @@ func videoSize(name string) int {
 		log.Fatal(err)
 	}
 	log.Printf("in all caps: %q\n", out.String())
-	height, err := strconv.Atoi(strings.Split(out.String(), "x")[1])
+	height, err := strconv.Atoi(strings.Replace(strings.Split(out.String(), "x")[1], "\n", "", -1))
 	if err != nil {
 		log.Fatal(err)
 	}
-	if height >= 1024 {
-		return 1024
-	} else if height >=720  {
+	if height >= 1080 {
 		return 720
-	} else if height >= 480  {
+	} else if height >= 720  {
 		return 480
-	} else if height >= 320  {
-		return 320
-	} else if height >= 280  {
-		return 280
-	} else if height >= 144  {
+	} else if height > 480  {
+		return 360
+	} else if height > 360  {
+		return 240
+	} else if height > 240  {
 		return 144
+	} else if height > 144  {
+		return -1
 	}
 	return -1
 }
