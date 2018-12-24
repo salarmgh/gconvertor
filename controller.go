@@ -1,14 +1,16 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
-	"os/exec"
 	"net/http"
-	"bytes"
+	"os"
+	"io/ioutil"
 	"encoding/json"
+	"os/exec"
+	"bytes"
 	"strings"
 	"strconv"
+	"path/filepath"
 )
 
 type Body struct {
@@ -22,64 +24,85 @@ func scaleHandler(w http.ResponseWriter, r *http.Request) {
 	    panic(err)
 	}
 	json.Unmarshal([]byte(bodyByte), &body)
-	size := videoSize(conf.Path + "/" + body.Name)
-	scaler(conf.Path + "/" + body.Name, size)
-}
-
-func scaler(name string, size int) {
-	log.Println("name: ", name)
-	log.Println("size: ", size)
-	sizes := map[int]string{
-    720: "960x720",
-	480: "640x480",
-    360: "480x360",
-    240: "320x240",
-	144: "256x144",
-    }
-    log.Println("ffmpeg, -i, " + name + ", -s, " + sizes[size] + ", " + strings.Split(name, ".")[0] + "_" + strconv.Itoa(size) + "p." + strings.Split(name, ".")[1])
-	cmd := exec.Command("ffmpeg", "-i", name, "-s", sizes[size], strings.Split(name, ".")[0] + "_" + strconv.Itoa(size) + "p." + strings.Split(name, ".")[1])
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Printf("in all caps: %q\n", out.String())
-	log.Printf("in all caps: %q\n", stderr.String())
-	size = videoSize(strings.Split(name, ".")[0] + "_" + strconv.Itoa(size) + "p." + strings.Split(name, ".")[1])
-	if size == -1 {
+	if _, err := os.Stat("/data/" + body.Name); os.IsNotExist(err) {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	scaler(strings.Split(name, ".")[0] + "_" + strconv.Itoa(size) + "p." + strings.Split(name, ".")[1], size)
+	scaler("/data/" + body.Name)
 }
 
-func videoSize(name string) int {
-	cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", name)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal(err)
+func getSize(name string) int {
+	height := -1
+	if _, err := os.Stat(name); !os.IsNotExist(err) {
+		cmd := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", name)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		err := cmd.Run()
+		if err != nil {
+			log.Fatal(err)
+		}
+		height, err = strconv.Atoi(strings.Replace(strings.Split(out.String(), "x")[1], "\n", "", -1))
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
-	log.Printf("in all caps: %q\n", out.String())
-	height, err := strconv.Atoi(strings.Replace(strings.Split(out.String(), "x")[1], "\n", "", -1))
-	if err != nil {
-		log.Fatal(err)
-	}
-	if height >= 1080 {
-		return 720
-	} else if height >= 720  {
-		return 480
-	} else if height > 480  {
-		return 360
-	} else if height > 360  {
-		return 240
-	} else if height > 240  {
-		return 144
-	} else if height > 144  {
+	switch height {
+	case 1080:
+		return 0
+	case 720:
+		return 1
+	case 480:
+		return 2
+	case 360:
+		return 3
+	case 240:
+		return 4
+	case 144:
 		return -1
 	}
 	return -1
+}
+
+func scaler(srcName string) {
+	sizes := []string{"1920x1080", "960x720", "640x480", "480x360", "320x240", "256x144"}
+
+
+	srcSizeIndex := getSize(srcName)
+	if srcSizeIndex == -1 {
+		return
+	}
+
+	srcSize := sizes[srcSizeIndex]
+	srcHeight := strings.Split(srcSize, "x")[1]
+
+	dstSize := sizes[srcSizeIndex + 1]
+	dstHeight := strings.Split(dstSize, "x")[1]
+
+	contain := false
+	for _, size := range sizes {
+		if strings.Contains(srcName, strings.Split(size, "x")[1]) {
+			contain = true
+			break
+		}
+	}
+
+	if !contain {
+    	nameHeight := strings.Replace(srcName, filepath.Ext(srcName), "", -1) + "_" + strings.Split(srcSize, "x")[1] + "p" + filepath.Ext(srcName)
+    	os.Rename(srcName, nameHeight)
+    	srcName = nameHeight
+	}
+
+	dstName := strings.Replace(srcName, srcHeight, dstHeight, -1)
+
+	
+	if _, err := os.Stat(dstName); os.IsNotExist(err) {
+		cmd := exec.Command("ffmpeg", "-i", srcName, "-s", dstSize, dstName)
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		err := cmd.Run()
+		if err != nil {
+			log.Fatal(err)
+		}
+    }
+	scaler(dstName)
 }

@@ -4,8 +4,8 @@ services:
     build:
       context: .
       args:
-        HTTP_PROXY: http://Guys:EscapeIran@178.128.164.255:7777
-        HTTPS_PROXY: http://Guys:EscapeIran@178.128.164.255:7777
+        HTTP_PROXY: {{PROXY}}
+        HTTPS_PROXY: {{PROXY}}
     environment:
       LISTEN_ADDR: 0.0.0.0
       LISTEN_PORT: 8080
